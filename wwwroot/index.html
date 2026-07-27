@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TODO · DAILY LOOP</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 主卡片：整个窗口 -->
+  <div id="app" class="card">
+    <!-- Hero 横幅（拖拽区） -->
+    <header id="hero">
+      <div class="hero-left">
+        <div class="kicker">TODO · <b>DAILY LOOP</b></div>
+        <h1 class="hero-title" id="heroTitle">今日<span class="accent">待办</span></h1>
+        <div class="hero-date" id="dateLabel"></div>
+      </div>
+      <div class="hero-field">
+        <canvas id="pixelField"></canvas>
+      </div>
+      <div class="hero-actions">
+        <button id="btnAdd" class="icon-btn btn-accent" title="创建任务" aria-label="创建任务">
+          <svg viewBox="0 0 12 12" width="13" height="13"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <button id="btnMode" class="icon-btn btn-ghost" title="进入 Mini 模式" aria-label="进入 Mini 模式">
+          <svg viewBox="0 0 12 12" width="13" height="13"><path d="M2 7.5 6 3.5 10 7.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 小窗模式：今日待办 -->
+    <main id="todayView">
+      <div class="progress-row">
+        <div class="pixel-progress" id="pixelProgress" aria-label="今日完成度"></div>
+        <div class="progress-label">PROGRESS · <b id="progNum">0/0</b></div>
+      </div>
+
+      <div id="missedBar" class="missed-bar hidden">
+        <span class="missed-sq"></span>
+        <span class="missed-text" id="missedText"></span>
+        <button class="missed-go" id="missedGo">去处理 →</button>
+      </div>
+
+      <ul id="taskList" class="task-list"></ul>
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-glyph">▚▞</div>
+        <div>今日暂无待办</div>
+        <div class="empty-hint">点右上角 ＋ 创建第一个任务</div>
+      </div>
+    </main>
+
+    <!-- 大窗模式：任务管理 -->
+    <main id="manageView" class="hidden">
+      <div class="columns">
+        <section class="col">
+          <div class="col-head">PENDING 未完成 <span class="col-count" id="pendingCount">×0</span></div>
+          <ul id="pendingList" class="manage-list"></ul>
+        </section>
+        <section class="col">
+          <div class="col-head">DONE 已完成 <span class="col-count" id="doneCount">×0</span>
+            <button id="clearArchived" class="clear-archived hidden"></button>
+          </div>
+          <ul id="doneList" class="manage-list"></ul>
+        </section>
+      </div>
+    </main>
+
+    <footer id="footer">
+      <span>LOOP · 自动循环</span>
+      <span id="saveState">✓ 已自动保存 --:--</span>
+      <span>LONG · D-DAY 倒计时</span>
+    </footer>
+  </div>
+
+  <!-- Mini 模式：右上角热区，鼠标靠近时淡入「退出 Mini」按钮 -->
+  <div id="miniHotzone" class="mini-hotzone hidden">
+    <button id="btnMiniMode" class="icon-btn btn-ghost mini-mode-btn" title="还原今日待办" aria-label="退出 Mini 模式">
+      <svg viewBox="0 0 12 12" width="13" height="13"><path d="M2 4.5 6 8.5 10 4.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <!-- 创建任务弹层 -->
+  <div id="sheetOverlay" class="sheet-overlay hidden">
+    <div class="sheet" role="dialog" aria-label="创建任务">
+      <div class="sheet-title" id="sheetTitle">创建任务</div>
+
+      <label class="field-label" for="fTitle">标题</label>
+      <input id="fTitle" class="field-input" type="text" maxlength="80" placeholder="要做点什么？" autocomplete="off">
+
+      <label class="field-label" for="fNote">备注</label>
+      <textarea id="fNote" class="field-input field-textarea" rows="2" placeholder="可选"></textarea>
+
+      <label class="field-label">任务类型</label>
+      <div class="segmented" id="segType">
+        <button type="button" data-type="recurring" class="seg active">循环任务</button>
+        <button type="button" data-type="longterm" class="seg">长期任务</button>
+      </div>
+
+      <div id="recurFields">
+        <label class="field-label" for="fRecurKind">循环周期</label>
+        <select id="fRecurKind" class="field-input">
+          <option value="daily">每日</option>
+          <option value="workdays">工作日</option>
+          <option value="weekly">每周</option>
+          <option value="monthly">每月</option>
+        </select>
+        <div id="weekdayChips" class="chip-group hidden"></div>
+        <div id="monthdayChips" class="chip-group hidden"></div>
+      </div>
+
+      <div id="dueFields" class="hidden">
+        <label class="field-label" for="fDue">截止日期</label>
+        <input id="fDue" class="field-input" type="date">
+      </div>
+
+      <div class="sheet-actions">
+        <button id="btnCancel" class="btn btn-plain">取消</button>
+        <button id="btnCreate" class="btn btn-primary">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 庆祝撒花画布 + 勾选粒子画布 + toast（两个画布分开，避免动画互相清屏） -->
+  <canvas id="confetti" class="hidden"></canvas>
+  <canvas id="burstFx" class="hidden"></canvas>
+  <div id="toast" class="toast hidden">今日任务全部完成，太棒了！</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
