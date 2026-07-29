@@ -759,6 +759,22 @@ bridge.onMessage(msg => {
   }
 });
 
+/* ---------- 跨天自动刷新 ---------- */
+// 程序常驻过夜时，0 点后日期标签、循环任务、漏做提醒都要按新的一天重算。
+// renderAll 内部已处理 Mini 模式的窗口高度同步，无需额外通知。
+let currentDay = todayKey();
+function checkDayRollover() {
+  const now = todayKey();
+  if (now === currentDay) return;
+  currentDay = now;
+  renderAll();
+}
+// 定时兜底（系统睡眠唤醒后定时器可能延迟，但恢复执行时仍会捕获跨天）
+setInterval(checkDayRollover, 30000);
+// 窗口重新获得焦点 / 从托盘恢复显示时立即检查一次
+window.addEventListener('focus', checkDayRollover);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkDayRollover(); });
+
 /* ---------- 启动 ---------- */
 bridge.send({ type: 'ready' });
 // 浏览器降级模式下 init 消息也会到达；兜底渲染一次
